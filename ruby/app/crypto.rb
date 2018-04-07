@@ -1,73 +1,48 @@
 require 'base64'
 
 module Crypto
+  class << self
+    # string, string ->  string
+    def xor_hex(hex1, hex2)
+      xor_bytes(
+        hex1.decode_hex,
+        hex2.decode_hex
+      ).encode_hex
+    end
 
-  # TODO: get better frequencies
-  # this is from: https://www.math.cornell.edu/~mec/2003-2004/cryptography/subs/frequencies.html
-  LETTER_FREQUENCIES = {
-    e: 12.02,
-    t: 9.10,
-    a: 8.12,
-    o: 7.68,
-    i: 7.31,
-    n: 6.95,
-    s: 6.28,
-    r: 6.02,
-    h: 5.92,
-    d: 4.32,
-    l: 3.98,
-    u: 2.88,
-    c: 2.71,
-    m: 2.61,
-    f: 2.30,
-    y: 2.11,
-    w: 2.09,
-    g: 2.03,
-    p: 1.82,
-    b: 1.49,
-    v: 1.11,
-    k: 0.69,
-    x: 0.17,
-    q: 0.11,
-    j: 0.10,
-    z: 0.07,
-  }
+    # byte-array, byte-array -> byte-array
+    def xor_bytes(as, bs)
+      as.zip(bs).map{ |a,b| a ^ b }
+    end
+  end
 
+  # TODO: extract these to a monkey_patches file?
   class ::String
-    def hex_to_base64 # => string
+    # hex string -> base64-encoded string
+    def hex_to_base64
       [[self].pack('H*')].pack("m0")
     end
 
-    def decode_hex # => Array<byte>
+    # hex string -> array<byte>
+    def decode_hex
       [self].pack("H*").bytes
+    end
+
+    # string -> hex string
+    def encode_hex
+      self.unpack("H*").first
     end
   end
 
   class ::Array
-    def encode_hex # => string
-      self.map{ |b| b.to_s(16) }.join
+    # array<byte> -> hex string
+    def encode_hex
+      encode_chars.encode_hex
     end
-  end
 
-  class << self
-    # string, string ->  string
-    def fixed_xor(hex1, hex2)
-      hex1.decode_hex
-        .zip(hex2.decode_hex)
-        .map{ |a,b| a ^ b }
-        .encode_hex
-    end
-  end
-
-  class SingleByteXOR
-    FREQUENCIES = {
-
-    }
-    class << self
-      # string -> string
-      def decrypt(hex)
-        hex
-      end
+    # array<byte> -> plaintext string
+    def encode_chars
+      self.map{ |b| b.chr }.join
     end
   end
 end

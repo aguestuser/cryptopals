@@ -5,6 +5,7 @@ require_relative "./stats"
 class SingleByteXorCypher
   include Crypto
   PERMITED_KEYS = Stats::ASCII_CHARS
+  DEFAULT_STRATEGY = :sum_frequency_deltas
 
   class << self
     # ascii_string, ascii char -> hex string
@@ -28,11 +29,11 @@ class SingleByteXorCypher
     end
 
     # hex string -> [string, string]
-    def decrypt_brute_force(cyphertext)
+    def decrypt_brute_force(cyphertext, strategy = DEFAULT_STRATEGY)
       hd_key, *tl_keys = *PERMITED_KEYS
       tl_keys.reduce(decrypt(cyphertext, hd_key)) do |best_guess, key|
         candidate_guess = decrypt(cyphertext, key)
-        Helpers.pick_min_score(best_guess, candidate_guess)
+        Helpers.pick_min_score(best_guess, candidate_guess, strategy)
       end
     end
 
@@ -66,14 +67,14 @@ class SingleByteXorCypher
   class Helpers
     class << self
       # string, string -> string
-      def pick_min_score(str1, str2)
+      def pick_min_score(str1, str2, strategy = DEFAULT_STRATEGY)
         return str1 if disqualified?(str2)
         return str2 if disqualified?(str1)
         score(str1) < score(str2) ? str1 : str2
       end
 
       # string -> float
-      def score(str, strategy = :sum_frequency_deltas)
+      def score(str, strategy = DEFAULT_STRATEGY)
         send(strategy, str)
       end
 
@@ -81,28 +82,35 @@ class SingleByteXorCypher
         !str.bytes.to_set.subset?(Stats::ASCII_BYTES)
       end
 
-      # def delta_of_summed_frequency_products(hex)
-      #   # measure the fit of a hex string's character distribution frequencey
-      #   # w/ ground truth frequency distribution by comparing:
-      #   # 1. the sum of the squares of the ground truth frequency of each char
-      #   # --- with ---
-      #   # 2. the sum of the product of the ground truth frequency
-      #   #    of each char and the frequency of each char in the hext string
-      #   # cf: Katz & Lindell's *Introduction To Modern Cryptography*, p. 12
-      #   (Stats::SUMMED_SQUARED_FREQUENCIES - sum_frequency_products(hex)).abs
-      # end
-
-      # # hex_string -> double
-      # def sum_frequency_products(hex)
-      #   # sum the product of the observed frequency of every character
-      #   # with the ground-truth frequency of every character
-      #   obs_freqs = measure_frequencies(hex)
-      #   Stats::FREQUENCIES_BY_BYTE.reduce(0.0) do |acc, (byte, freq)|
-      #     Stats.round((acc + (freq * obs_freqs.fetch(byte, 0.0))))
-      #   end
-      # end
+      def delta_of_summed_frequency_products(hex)
+        # measure the fit of a hex string's character distribution frequencey
+        # w/ ground truth frequency distribution by comparing:
+        # 1. the sum of the squares of the ground truth frequency of each char
+        # --- with ---
+        # 2. the sum of the product of the ground truth frequency
+        #    of each char and the frequency of each char in the hext string
+        # cf: Katz & Lindell's *Introduction To Modern Cryptography*, p. 12
+        Stats.round(
+          (
+            Stats::SUMMED_SQUARED_FREQUENCIES -
+            sum_frequency_products(hex)
+          ).abs
+        )
+      end
 
       # hex_string -> double
+      def sum_frequency_products(str)
+        # sum the product of the observed frequency of every character
+        # with the ground-truth frequency of every character
+        obs_freqs = measure_frequencies(str)
+        Stats::FREQUENCIES_BY_BYTE.reduce(0.0) do |acc, (byte, freq)|
+          Stats.round(
+            (acc + Stats.round(freq * obs_freqs.fetch(byte, 0.0)))
+          )
+        end
+      end
+
+      # ascii_string -> double
       def sum_frequency_deltas(str)
         Stats.round(measure_frequency_deltas(str).values.sum)
       end

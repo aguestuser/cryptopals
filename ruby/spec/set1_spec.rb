@@ -10,7 +10,7 @@ describe Crypto do
 Should produce:
 SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t
 
-So go ahead and make that happen. You'll need to use this code for the rest of the exercises. 
+So go ahead and make that happen. You'll need to use this code for the rest of the exercises.
 =end
 
     describe "solution" do
@@ -89,11 +89,28 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
     Character frequency is a good metric. Evaluate each output and choose the one with the best score.
 =end
 
-    describe "solution" do
-      it 'decrypts a message encrypted with single-byte XOR cypter' do
-        m = '1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736'
-        expect(SingleByteXorCypher.decrypt_brute_force(m))
-          .to eql "Cooking MC's like a pound of bacon"
+    describe "solutions" do
+      let(:strategy){}
+      let(:flag){ "Cooking MC's like a pound of bacon" }
+      let(:decrypted_msg) do
+        SingleByteXorCypher.decrypt_brute_force(
+          '1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736',
+          strategy
+        )
+      end
+
+      describe "using summed frequency delta strategy" do
+        let(:strategy){ :sum_frequency_deltas }
+        it "decrypts the message" do
+          expect(decrypted_msg).to eql flag
+        end
+      end
+
+      describe "using delta of summed frequency products strategy" do
+        let(:strategy){ :delta_of_summed_frequency_products }
+        it "decrypts the message" do
+          expect(decrypted_msg).to eql flag
+        end
       end
     end
 
@@ -163,7 +180,7 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
       end
 
       describe "scoring" do
-        describe "frequency delta strategy" do
+        describe "summed frequency delta strategy" do
           it "measures the deltas between observed frequencies and ground truth" do
             expect(
               SingleByteXorCypher::Helpers.measure_frequency_deltas("cccbba")
@@ -222,29 +239,29 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
         end
 
         describe "summed frequency product strategy" do
-          it "is hard to implement ;)"
           # see: Katz & Lindell's *Introduction To Modern Cryptography*, p. 12
-          # skip "deprecated"
-          # it 'measures sum of the product of observed frequencies w/ known frequencies' do
-          #   # this sets up a strategy for comparing frequency distributions
 
-          #   expect(
-          #     SingleByteXorCypher::Helpers.sum_frequency_products("aabbc".encode_hex)
-          #   ).to eql 0.0501
-          # end
+          it 'measures sum of the product of observed frequencies w/ known frequencies' do
+            # this sets up a strategy for comparing frequency distributions
+            expect(
+              SingleByteXorCypher::Helpers.sum_frequency_products("cccbba")
+            ).to eql 0.0330481
+          end
 
-          # it "scores strings based on delta btw/ observed frequencies & ground truth" do
-          #   expect(SingleByteXorCypher::Helpers.score("cccbba")).to eql 0.0647
-          # end
+          it "scores strings based on delta btw/ observed frequencies & ground truth" do
+            expect(
+              SingleByteXorCypher::Helpers.score("cccbba", :delta_of_summed_frequency_products)
+            ).to eql 0.0357351
+          end
 
-          # it "picks the string with the lowest score" do
-          #   expect(
-          #     SingleByteXorCypher::Helpers.pick_min_score(
-          #       "thetoasteatingceremony",
-          #       "jwwwwddhadkdklackaolbnd"
-          #     )
-          #   ).to eql "thetoasteatingceremony"
-          # end
+          it "picks the string with the lowest score" do
+            expect(
+              SingleByteXorCypher::Helpers.pick_min_score(
+                "the toast eating ceremony",
+                "jwwwwddhadkdklackaolbnd"
+              )
+            ).to eql "the toast eating ceremony"
+          end
         end
       end
 
@@ -252,20 +269,21 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
       # PUT THE PIECES TOETHER #
       ##########################
 
-      it "brute force decrypts a hex string via brute force" do
+      it "brute force decrypts a hex string with summed frequency strategy" do
+        key = SingleByteXorCypher::PERMITED_KEYS.to_a.sample
         expect(
           SingleByteXorCypher.decrypt_brute_force(
-            SingleByteXorCypher.encrypt("the toast eating ceremony", "c")
+            SingleByteXorCypher.encrypt("the toast eating ceremony", key)
           )
         ).to eql "the toast eating ceremony"
       end
 
-      it "brute force decrypts a hex string and formats it properly" do
-        # NOTE: without formating helper, cypher will return:
-        # "THE\x00TOAST\x00EATING\x00CEREMONY"
+      it "brute-force decrypts with delta of summed frequency products strategy" do
+        key = SingleByteXorCypher::PERMITED_KEYS.to_a.sample
         expect(
           SingleByteXorCypher.decrypt_brute_force(
-            SingleByteXorCypher.encrypt("the toast eating ceremony", "C")
+            SingleByteXorCypher.encrypt("the toast eating ceremony", key),
+            :delta_of_summed_frequency_products
           )
         ).to eql "the toast eating ceremony"
       end

@@ -11,12 +11,6 @@ module Stats
     def round(float)
       BigDecimal.new(float, SIGNIFICANT_DIGITS).to_f
     end
-
-    def transformed_freq_map
-      FREQUENCIES_BY_CHAR.transform_values do |val|
-        round(val * 0.01)
-      end
-    end
   end
 
   # source: https://reusablesec.blogspot.com/2009/05/character-frequency-analysis-info.html
@@ -126,9 +120,5 @@ module Stats
   ASCII_CHARS = FREQUENCIES_BY_CHAR.dup.keys.to_set.freeze
   FREQUENCIES_BY_BYTE = FREQUENCIES_BY_CHAR.transform_keys{ |k| k.to_s.ord }.freeze
   ASCII_BYTES = FREQUENCIES_BY_BYTE.dup.keys.to_set.freeze
-
-  PERMITED_KEYS = %w[
-    A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-    a b c d e f g h i j k l m n o p q r s t u v w x y z
-  ].to_set
+  SUMMED_SQUARED_FREQUENCIES = 0.0687832.freeze
 end

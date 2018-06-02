@@ -75,7 +75,7 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
     end
   end
 
-  describe "challenge 3" do
+  describe "challenge 3: Single-byte XOR Cypher" do
 
 =begin
     Single-byte XOR cipher
@@ -92,7 +92,7 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
     describe "solution" do
       it 'decrypts a message encrypted with single-byte XOR cypter' do
         m = '1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736'
-        expect(SingleByteXorCypher.maliciously_decrypt(m))
+        expect(SingleByteXorCypher.decrypt_brute_force(m))
           .to eql "Cooking MC's like a pound of bacon"
       end
     end
@@ -120,48 +120,221 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
       ##################
 
       # now let's build up to our solution bit-by-bit..
-
-      it 'counts occurrences of character bytes in a hex string' do
+      it 'counts occurrences of ASCII bytes in a string' do
         expect(
-          SingleByteXorCypher::Helpers.count_occurrences("616161626263")
-        ).to eql([6, { 97 => 3, 98 => 2, 99 => 1 }])
+          SingleByteXorCypher::Helpers.count_occurrences("cccbba")
+        ).to eql([6, { 97 => 1, # a
+                       98 => 2, # b
+                       99 => 3 }]) #c
       end
 
-      it 'measures the frequencies of character bytes in a hex string' do
+      it "counts non-character bytes" do
         expect(
-          SingleByteXorCypher::Helpers.measure_frequencies("616161626263")
-        ).to eql(97 => 0.5000, 98 => 0.3333, 99 => 0.1667)
+          SingleByteXorCypher::Helpers.count_occurrences("ccc bb! a?")
+        ).to eql([
+                   10,
+                   {
+                     32 => 2, # SPC
+                     33 => 1, # ?
+                     63 => 1, # !
+                     97 => 1, # a
+                     98 => 2, # b
+                     99 => 3, # c
+                   }])
       end
 
-      it 'measures sum of the product of observed frequencies w/ known frequencies' do
-        # this sets up a strategy for comparing frequency distributions
-        # cf: Katz & Lindell's *Introduction To Modern Cryptography*, p. 12
+      it 'measures the frequencies of ASCII bytes in a string' do
         expect(
-          SingleByteXorCypher::Helpers.sum_frequency_products("616161626263")
-        ).to eql 0.0501
+          SingleByteXorCypher::Helpers.measure_frequencies("cccbba")
+        ).to eql(97 => 0.166667,
+                 98 => 0.333333,
+                 99 => 0.500000)
       end
 
-      it "scores strings based on delta btw/ observed frequencies & ground truth" do
-        expect(SingleByteXorCypher::Helpers.score("aaabbc")).to eql 0.0647
+      it "measures frequency of non-character, non-whitespace bytes" do
+        expect(
+          SingleByteXorCypher::Helpers.measure_frequencies("ccc bb! a?")
+        ).to eql(32 => 0.2,
+                 33 => 0.1,
+                 63 => 0.1,
+                 97 => 0.1,
+                 98 => 0.2,
+                 99 => 0.3)
       end
 
-      it "picks the string with the lowest score" do
-        expect(
-          SingleByteXorCypher::Helpers.pick_min_score(
-            "thetoasteatingceremony",
-            "jwwwwddhadkdklackaolbnd"
-          )
-        ).to eql "thetoasteatingceremony"
+      describe "scoring" do
+        describe "frequency delta strategy" do
+          it "measures the deltas between observed frequencies and ground truth" do
+            expect(
+              SingleByteXorCypher::Helpers.measure_frequency_deltas("cccbba")
+            ).to eql(97 => 0.0913904,
+                     98 => 0.310418,
+                     99 => 0.474272)
+          end
+
+          it "measures deltas for non-character non-whitespace bytes" do
+            expect(
+              SingleByteXorCypher::Helpers.measure_frequency_deltas("ccc bb! a?")
+            ).to eql(32 => 0.033334,
+                     33 => 0.0996931,
+                     63 => 0.0999793,
+                     97 => 0.0247234,
+                     98 => 0.177086,
+                     99 => 0.274272)
+          end
+
+          it "sums the deltas for all observed frequencies" do
+            expect(
+              SingleByteXorCypher::Helpers.sum_frequency_deltas("cccbba")
+            ).to eql 0.876080
+          end
+
+          it "sums the deltas for observed non-char frequencies" do
+            expect(
+              SingleByteXorCypher::Helpers.sum_frequency_deltas("aaa bb? c!")
+            ).to eql 0.709088
+          end
+
+          it "scores strings w.r.t. their summed frequency deltas" do
+            expect(
+              SingleByteXorCypher::Helpers.score("cccbba", :sum_frequency_deltas)
+            ).to eql 0.876080
+          end
+
+          it "considers whitespace when scoring strings" do
+            expect(
+              SingleByteXorCypher::Helpers.score("thetoasteatingceremony")
+            ).not_to(
+              eql(
+                SingleByteXorCypher::Helpers.score("the toast eatingceremony")
+              )
+            )
+          end
+
+          it "picks the string with the smallest score" do
+            expect(
+              SingleByteXorCypher::Helpers.pick_min_score(
+                "cccbba",
+                "the toast eating ceremony"
+              )
+            ).to eql "the toast eating ceremony"
+          end
+        end
+
+        describe "summed frequency product strategy" do
+          it "is hard to implement ;)"
+          # see: Katz & Lindell's *Introduction To Modern Cryptography*, p. 12
+          # skip "deprecated"
+          # it 'measures sum of the product of observed frequencies w/ known frequencies' do
+          #   # this sets up a strategy for comparing frequency distributions
+
+          #   expect(
+          #     SingleByteXorCypher::Helpers.sum_frequency_products("aabbc".encode_hex)
+          #   ).to eql 0.0501
+          # end
+
+          # it "scores strings based on delta btw/ observed frequencies & ground truth" do
+          #   expect(SingleByteXorCypher::Helpers.score("cccbba")).to eql 0.0647
+          # end
+
+          # it "picks the string with the lowest score" do
+          #   expect(
+          #     SingleByteXorCypher::Helpers.pick_min_score(
+          #       "thetoasteatingceremony",
+          #       "jwwwwddhadkdklackaolbnd"
+          #     )
+          #   ).to eql "thetoasteatingceremony"
+          # end
+        end
       end
 
       ##########################
       # PUT THE PIECES TOETHER #
       ##########################
 
-      it "maliciously decrypts a hex string through brute force attack" do
-        cyphertext = SingleByteXorCypher.encrypt("the toast eating ceremony", "C")
-        expect(SingleByteXorCypher.maliciously_decrypt(cyphertext)).
-          to eql "the toast eating ceremony"
+      it "brute force decrypts a hex string via brute force" do
+        expect(
+          SingleByteXorCypher.decrypt_brute_force(
+            SingleByteXorCypher.encrypt("the toast eating ceremony", "c")
+          )
+        ).to eql "the toast eating ceremony"
+      end
+
+      it "brute force decrypts a hex string and formats it properly" do
+        # NOTE: without formating helper, cypher will return:
+        # "THE\x00TOAST\x00EATING\x00CEREMONY"
+        expect(
+          SingleByteXorCypher.decrypt_brute_force(
+            SingleByteXorCypher.encrypt("the toast eating ceremony", "C")
+          )
+        ).to eql "the toast eating ceremony"
+      end
+    end
+  end
+
+  xdescribe "challenge 4: Detect single-character XOR" do
+=begin
+  Detect single-character XOR
+
+  One of the 60-character strings in this file has been encrypted by single-character XOR.
+
+  Find it.
+
+  (Your code from #3 should help.)
+=end
+
+    describe "solution" do
+      it "detects which hex string has been encrypted by single-character XOR" do
+        strings = File.readlines("spec/fixtures/challenge_4_hex_strings.txt")
+        expect(SingleByteXorCypher.decrypt_first_encrypted(strings))
+          .to eql "hmmm"
+      end
+    end
+
+    describe "methods" do
+      describe "given an array of non-encrypted strings" do
+        it "returns nil" do
+          expect(
+            SingleByteXorCypher.decrypt_first_encrypted(
+              [
+                "dkdkdkkdka;adkdkdkw09c9a",
+                "poienenneas;oewlkadsh;ij",
+                "o4a;939x9v9a';fdkvksa;lk"
+              ]
+            )
+          ).to be nil
+        end
+      end
+
+      describe "given an arry containing two encrypted strings" do
+        it "returns plaintext for the first encrypted string" do
+          expect(
+            SingleByteXorCypher.decrypt_first_encrypted(
+              [
+                "dkdkdkkdka;adkdkdkw09c9a",
+                SingleByteXorCypher.encrypt("the toast eating ceremony", "x"),
+                "o4a;939x9v9a';fdkvksa;lk",
+                SingleByteXorCypher.encrypt("the tea drinking ceremony", "C"),
+              ]
+            )
+          ).to eql "the toast eating ceremony"
+        end
+      end
+
+      it "detects that a string not has been xor encrypted" do
+        expect(SingleByteXorCypher.is_encrypted?("dkdka;dkdkaowowowkdkdkdk"))
+          .to be false
+      end
+
+      it"detects that a string has been xor encrypted" do
+        expect(SingleByteXorCypher.is_encrypted?(
+          SingleByteXorCypher.encrypt("hello world", "c")
+        )).to be true
+      end
+
+      it "enumerates the scores for all non-disqualified candidate keys" do
+        expect(SingleByteXorCypher.score_keys("0b060f0f0c43140c110f07"))
+          .to eql [0.0462, 0.0647, 0.0647]
       end
     end
   end

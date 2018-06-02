@@ -1,14 +1,134 @@
+# coding: utf-8
+require 'bigdecimal'
+
+# coding: utf-8
 module Stats
-  DECIMAL_PLACES = 4
-  ASCII_CHARS = %w[A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-                   a b c d e f g h i j k l m n o p q r s t u v w x y z].to_set
-   # SOURCE: https://www.math.cornell.edu/~mec/2003-2004/cryptography/subs/frequencies.html
-  FREQUENCIES_BY_CHAR = { a: 0.0812, b: 0.0149, c: 0.0271, e: 0.1202, d: 0.0432,
-                          f: 0.0230, g: 0.0203, h: 0.0592, i: 0.0731, j: 0.0010,
-                          k: 0.0069, l: 0.0398, m: 0.0261, n: 0.0695, o: 0.0768,
-                          p: 0.0182, q: 0.0011, r: 0.0602, s: 0.0628, t: 0.0910,
-                          u: 0.0288, v: 0.0111, w: 0.0209, x: 0.0017, y: 0.0211,
-                          z: 0.0007 }.freeze
-  FREQUENCIES_BY_BYTE = FREQUENCIES_BY_CHAR.transform_keys{ |k| k.to_s.ord }
-  SUMMED_SQUARED_FREQUENCIES = 0.0647
+  #include BigDecimal
+  # DECIMAL_PLACES = 4
+  SIGNIFICANT_DIGITS = 6
+
+  class << self
+    def round(float)
+      BigDecimal.new(float, SIGNIFICANT_DIGITS).to_f
+    end
+
+    def transformed_freq_map
+      FREQUENCIES_BY_CHAR.transform_values do |val|
+        round(val * 0.01)
+      end
+    end
+  end
+
+  # source: https://reusablesec.blogspot.com/2009/05/character-frequency-analysis-info.html
+  # NOTE: we omit whitespace chars
+  FREQUENCIES_BY_CHAR = {
+    "'" => 1.22045e-06,
+    " " => 0.166666,
+    "!" => 0.000306942,
+    "\"" => 1.83067e-06,
+    "#" => 8.54313e-05,
+    "$" => 9.70255e-05,
+    "%" => 1.70863e-05,
+    "&" => 1.34249e-05,
+    "(" => 4.27156e-06,
+    ")" => 1.15942e-05,
+    "*" => 0.000241648,
+    "+" => 2.31885e-05,
+    "," => 3.23418e-05,
+    "-" => 0.000197712,
+    "." => 0.000316706,
+    "/" => 3.11214e-05,
+    "0" => 0.0274381,
+    "1" => 0.0435053,
+    "2" => 0.0312312,
+    "3" => 0.0243339,
+    "4" => 0.0194265,
+    "5" => 0.0188577,
+    "6" => 0.0175647,
+    "7" => 0.01621,
+    "8" => 0.0166225,
+    "9" => 0.0179558,
+    ":" => 5.49201e-06,
+    ";" => 2.07476e-05,
+    "<" => 4.27156e-06,
+    "=" => 1.40351e-05,
+    ">" => 1.83067e-06,
+    "?" => 2.07476e-05,
+    "@" => 0.000238597,
+    "A" => 0.00130466,
+    "B" => 0.000806715,
+    "C" => 0.000660872,
+    "D" => 0.000698096,
+    "E" => 0.000970865,
+    "F" => 0.000417393,
+    "G" => 0.000497332,
+    "H" => 0.000544319,
+    "I" => 0.00070908,
+    "J" => 0.000363083,
+    "K" => 0.000460719,
+    "L" => 0.000775594,
+    "M" => 0.000782306,
+    "N" => 0.000748134,
+    "O" => 0.000729217,
+    "P" => 0.00073715,
+    "Q" => 0.000147064,
+    "R" => 0.0008476,
+    "S" => 0.00108132,
+    "T" => 0.000801223,
+    "U" => 0.000350268,
+    "V" => 0.000235546,
+    "W" => 0.000320367,
+    "X" => 0.000142182,
+    "Y" => 0.000255073,
+    "Z" => 0.000170252,
+    "[" => 1.0984e-05,
+    "\\" => 1.15942e-05,
+    "]" => 1.0984e-05,
+    "^" => 1.95272e-05,
+    "_" => 0.000122655,
+    "`" => 1.15942e-05,
+    "a" => 0.0752766,
+    "b" => 0.0229145,
+    "c" => 0.0257276,
+    "d" => 0.0276401,
+    "e" => 0.070925,
+    "f" => 0.012476,
+    "g" => 0.0185331,
+    "h" => 0.0241319,
+    "i" => 0.0469732,
+    "j" => 0.00836677,
+    "k" => 0.0196828,
+    "l" => 0.0377728,
+    "m" => 0.0299913,
+    "n" => 0.0456899,
+    "o" => 0.0517,
+    "p" => 0.0245578,
+    "q" => 0.00346119,
+    "r" => 0.0496032,
+    "s" => 0.0461079,
+    "t" => 0.0387388,
+    "u" => 0.0210191,
+    "v" => 0.00833626,
+    "w" => 0.0124492,
+    "x" => 0.00573305,
+    "y" => 0.0152483,
+    "z" => 0.00632558,
+    "{" => 1.22045e-06,
+    "|" => 1.22045e-06,
+    "}" => 0.0610223,
+    "~" => 1.52556e-05,
+    "ä" => 6.10223e-07,
+    "æ" => 1.83067e-06,
+    "ö" => 6.10223e-07,
+    "ü" => 1.22045e-06
+  }.freeze
+
+  ASCII_CHARS = FREQUENCIES_BY_CHAR.dup.keys.to_set.freeze
+  FREQUENCIES_BY_BYTE = FREQUENCIES_BY_CHAR.transform_keys{ |k| k.to_s.ord }.freeze
+  ASCII_BYTES = FREQUENCIES_BY_BYTE.dup.keys.to_set.freeze
+
+  PERMITED_KEYS = %w[
+    A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+    a b c d e f g h i j k l m n o p q r s t u v w x y z
+  ].to_set
 end

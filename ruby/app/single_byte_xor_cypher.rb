@@ -1,30 +1,33 @@
 require "active_support"
+require "pry"
 require_relative "./crypto"
 require_relative "./stats"
 
 class SingleByteXorCypher
   include Crypto
-  PERMITED_KEYS = Stats::ASCII_CHARS
-  DEFAULT_STRATEGY = :sum_frequency_deltas
+  # PERMITED_KEYS = Stats::ASCII_CHARS
+  PERMITED_KEYS = (0..127).to_set.freeze
+  DEFAULT_STRATEGY = :delta_of_summed_frequency_products
+  DISTINGUISHING_SCORE_THRESHOLD = 0.02
 
   class << self
-    # ascii_string, ascii char -> hex string
+    # ascii_string, byte -> hex string
     def encrypt(plaintext, key)
       check_valid key
       bytes = plaintext.bytes
       Crypto.xor_bytes(
         bytes,
-        Array.new(bytes.count) { key.bytes.first }
+        Array.new(bytes.count) { key }
       ).encode_hex
     end
 
-    # hex string, string -> ascii string
+    # hex string, bytes -> ascii string
     def decrypt(cyphertext, key)
       check_valid key
       bytes = cyphertext.decode_hex
       Crypto.xor_bytes(
         bytes,
-        Array.new(bytes.count) { key.bytes.first },
+        Array.new(bytes.count) { key },
       ).encode_chars
     end
 
@@ -37,30 +40,36 @@ class SingleByteXorCypher
       end
     end
 
-    # # array<hex string> -> string|nil
-    # def decrypt_first_encrypted(maybe_cyphertexts)
-    #   if cyphertext = maybe_cyphertexts.find{ |str| is_encrypted?(str) }
-    #     decrypt_brute_force(cyphertext)
-    #   end
-    # end
+    def decrypt_many_from_file(path, strategy = DEFAULT_STRATEGY)
+      cs = File
+             .readlines("spec/fixtures/challenge_4_hex_strings.txt")
+             .map{ |ln| ln.gsub(/\n/, '') }
+      decrypt_many_brute_force(cs, strategy)
+    end
 
-    # def is_encrypted?(maybe_cyphertext)
-    #   score_keys(maybe_cyphertext)
-    #     .find{ |k| k <= Stats::SUMMED_SQUARED_FREQUENCIES } ? true : false
-    # end
-
-    # # hex string -> array<float>
-    # def score_keys(cyphertext)
-    #   PERMITED_KEYS
-    #     .map { |key| Helpers.score(fmt(decrypt(cyphertext, key))) }
-    #     .map{ |score| Stats.round(score) }
-    # end
+    def decrypt_many_brute_force(cyphertexts, strategy = DEFAULT_STRATEGY)
+      hd_c, *tl_cs = *cyphertexts
+      res = tl_cs.reduce(decrypt_brute_force(hd_c)) do |best_guess, c|
+        candidate_guess = decrypt_brute_force(c)
+        Helpers.pick_min_score(best_guess, candidate_guess, strategy)
+      end
+      Helpers.score(res) < DISTINGUISHING_SCORE_THRESHOLD ? res : nil
+    end
 
     private
 
     # void | throw
     def check_valid(key)
-      raise "Key must be a letter character" unless PERMITED_KEYS.include? key
+      raise "Key must be an ASCII character" unless PERMITED_KEYS.include? key
+    end
+
+    # for debugging/sleuthing
+    def show_all_candidates(maybe_cyphertexts)
+      maybe_cyphertexts
+        .map{ |c| PERMITED_KEYS.map{ |k| m = decrypt(c, k); [m, Helpers.score(m)] } }
+        .flatten
+        .reject{ |(m,_)| Helpers.disqualified?(m) }
+        .sort_by{ |(_,s)| s }
     end
   end
 
@@ -70,7 +79,7 @@ class SingleByteXorCypher
       def pick_min_score(str1, str2, strategy = DEFAULT_STRATEGY)
         return str1 if disqualified?(str2)
         return str2 if disqualified?(str1)
-        score(str1) < score(str2) ? str1 : str2
+        return score(str1) < score(str2) ? str1 : str2
       end
 
       # string -> float
@@ -79,7 +88,7 @@ class SingleByteXorCypher
       end
 
       def disqualified?(str)
-        !str.bytes.to_set.subset?(Stats::ASCII_BYTES)
+        !str.bytes.to_set.subset?(PERMITED_KEYS)
       end
 
       def delta_of_summed_frequency_products(hex)

@@ -1,5 +1,6 @@
 require_relative "../app/crypto"
 require_relative "../app/single_byte_xor_cypher"
+require_relative "./fixtures"
 
 describe Crypto do
   describe "challenge 1: Convert hex to base64" do
@@ -123,12 +124,12 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
       # let's make sure we can encrypt and decrypt stuff correctly...
 
       it "encrypts a string by XOR-ing its byte repr. w/ a repeated char byte" do
-        expect(SingleByteXorCypher.encrypt("hello world", "c")).
+        expect(SingleByteXorCypher.encrypt("hello world", "c".ord)).
           to eql "0b060f0f0c43140c110f07"
       end
 
       it "decrypts a hex string given the key the plaintext was XOR'ed with" do
-        expect(SingleByteXorCypher.decrypt("0b060f0f0c43140c110f07", "c")).
+        expect(SingleByteXorCypher.decrypt("0b060f0f0c43140c110f07", "c".ord)).
           to eql "hello world"
       end
 
@@ -290,7 +291,7 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
     end
   end
 
-  xdescribe "challenge 4: Detect single-character XOR" do
+  describe "challenge 4: Detect single-character XOR" do
 =begin
   Detect single-character XOR
 
@@ -302,57 +303,45 @@ So go ahead and make that happen. You'll need to use this code for the rest of t
 =end
 
     describe "solution" do
-      it "detects which hex string has been encrypted by single-character XOR" do
-        strings = File.readlines("spec/fixtures/challenge_4_hex_strings.txt")
-        expect(SingleByteXorCypher.decrypt_first_encrypted(strings))
-          .to eql "hmmm"
+      let(:path){ "spec/fixtures/challenge_4_hex_strings.txt" }
+
+      it "finds the encrypted string and decrypts it" do
+        expect(
+          SingleByteXorCypher.decrypt_many_from_file(path)
+        ).to eql "Now that the party is jumping\n"
       end
     end
 
-    describe "methods" do
-      describe "given an array of non-encrypted strings" do
-        it "returns nil" do
-          expect(
-            SingleByteXorCypher.decrypt_first_encrypted(
-              [
-                "dkdkdkkdka;adkdkdkw09c9a",
-                "poienenneas;oewlkadsh;ij",
-                "o4a;939x9v9a';fdkvksa;lk"
-              ]
-            )
-          ).to be nil
+    describe "helpers" do
+      describe "#decrypt_many_brute_force" do
+        describe "given an array of non-encrypted strings" do
+          it "returns nil" do
+            expect(
+              SingleByteXorCypher.decrypt_many_brute_force(
+                [
+                  "dkdkdkkdka;adkdkdkw09c9a",
+                  "poienenneas;oewlkadsh;ij",
+                  "o4a;939x9v9a';fdksvksa;lk"
+                ]
+              )
+            ).to be nil
+          end
         end
-      end
 
-      describe "given an arry containing two encrypted strings" do
-        it "returns plaintext for the first encrypted string" do
-          expect(
-            SingleByteXorCypher.decrypt_first_encrypted(
-              [
-                "dkdkdkkdka;adkdkdkw09c9a",
-                SingleByteXorCypher.encrypt("the toast eating ceremony", "x"),
-                "o4a;939x9v9a';fdkvksa;lk",
-                SingleByteXorCypher.encrypt("the tea drinking ceremony", "C"),
-              ]
-            )
-          ).to eql "the toast eating ceremony"
+        describe "given an array containing garbage strings and encrypted messages" do
+          it "returns plaintext for the first encrypted message" do
+            expect(
+              SingleByteXorCypher.decrypt_many_brute_force(
+                [
+                  "acabacabacab123123",
+                  SingleByteXorCypher.encrypt("the toast eating ceremony", "x".ord),
+                  "efefefef123456",
+                  SingleByteXorCypher.encrypt("the tea drinking ceremony", "C".ord),
+                ]
+              )
+            ).to eql "the toast eating ceremony"
+          end
         end
-      end
-
-      it "detects that a string not has been xor encrypted" do
-        expect(SingleByteXorCypher.is_encrypted?("dkdka;dkdkaowowowkdkdkdk"))
-          .to be false
-      end
-
-      it"detects that a string has been xor encrypted" do
-        expect(SingleByteXorCypher.is_encrypted?(
-          SingleByteXorCypher.encrypt("hello world", "c")
-        )).to be true
-      end
-
-      it "enumerates the scores for all non-disqualified candidate keys" do
-        expect(SingleByteXorCypher.score_keys("0b060f0f0c43140c110f07"))
-          .to eql [0.0462, 0.0647, 0.0647]
       end
     end
   end
